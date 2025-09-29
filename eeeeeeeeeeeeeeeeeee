@@ -1,5 +1,6 @@
 --keybind to open is comma
 
+
 local IsStudio = false
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -407,12 +408,175 @@ for i, Emote in pairs(totalEmotes) do
 	AddEmote(Emote.Name, Emote.Id, Emote.Price)
 end
 
+
+---Update Aug 15, 2025--
+AddEmote("PARROT PARTY DANCE", 121067808279598)
+AddEmote("Dance n' Prance", 99031916674986)
+AddEmote("R15 Death (Accurate)", 114899970878842)
+AddEmote("Wally West", 133948663586698)
+AddEmote("Take The L", 123159156696507)
+AddEmote("Xaviersobased", 131763631172236)
+AddEmote("Belly Dancing", 131939729732240)
+AddEmote("RAT DANCE", 133461102795137)
+AddEmote("CaramellDansen", 93105950995997)
+AddEmote("Biblically Accurate", 133596366979822)
+AddEmote("Rambunctious", 134311528115559)
+AddEmote("Ballin", 96293409369770)
+AddEmote("Die Lit", 121001502815813)
+AddEmote("Nyan Nyan!", 73796726960568)
+AddEmote("Teto Territory", 114428584463004)
+AddEmote("Skibidi", 124828909173982)
+AddEmote("Chronoshift", 92600655160976)
+AddEmote("Floating on Clouds", 111426928948833)
+AddEmote("Jersey Joe", 134149640725489)
+AddEmote("Virtual Insanity", 83261816934732)
+AddEmote("Doodle Dance", 107091254142209)
+AddEmote("Subject 3", 105208524466512)
+AddEmote("Club Penguin", 98099211500155)
+AddEmote("Kazotsky", 97629500912487)
+AddEmote("Miku Dance", 117734400993750)
+AddEmote("Deltarune - Tenna Swing")
+AddEmote("Hakari Dance", 80270168146449)
+AddEmote("Addendum Dance [R6]", 134442882516163)
+AddEmote("Gangnam Style", 77205409178702)
+AddEmote("Push-Up", 117922227854118)
+
+
+AddEmote("Split", 98522218962476)
+
+AddEmote("PROXIMA", 81390693780805)
+
+
+AddEmote("HeadBanging", 87447252507832)
+
+
+AddEmote("Assumptions", 127507691649322)
+
+AddEmote("Jumpstyle", 99563839802389)
+
+
+AddEmote("Flopping Fish", 133142324349281)
+AddEmote("Kicking Feet Sit", 78758922757947)
+
+AddEmote("Fancy Feets", 124512151372711)
+
+AddEmote("Cute Sit", 90244178386698)
+AddEmote("Absolute Cinema", 97258018304125)
+AddEmote("Bubbly Sit", 112758073578333)
+AddEmote("Become A Car", 131544122623505)
+AddEmote("Hiding Human Box", 124935873390035)
+AddEmote("Magical Pose", 135489824748823)
+AddEmote("Griddy", 116065653184749)
+AddEmote("Gon Rage", 139639173024927)
+AddEmote("Become Couch", 93335594132613)
+AddEmote("Spare Change", 126749574427431)
+AddEmote("Paranoid", 123407922818447)
+AddEmote("Kawaii Groove", 77152953688098)
+AddEmote("Ai Cat dance", 136593170936320)
+AddEmote("Smeeze", 131683926643291)
+AddEmote("Onion", 113890289455724)
+AddEmote("Thinking", 124584711308900)
+AddEmote("Little Obbyist", 134584040095037)
+AddEmote("Aura Fly", 78755795767408)
+AddEmote("Invisible", 109899950448992)
+AddEmote("Slenderman", 81926508907412)
+AddEmote("Chill pose", 77058107325712)
+AddEmote("house", 93552301087938)
+AddEmote("baby", 82824758023484)
+AddEmote("zenitsu", 92750276568993)
+AddEmote("gun", 73562814360939)
+AddEmote("Spy Laugh tf2", 137720205462499) 
+AddEmote("Head Juggling", 82224981519682)
+AddEmote("Omniman Think", 70560694892323)
+AddEmote("Ishowspeed Shake Dancing", 98605663321775)
+AddEmote("Wait", 106569806588657)
+AddEmote("Shinji Pose", 97629500912487)
+AddEmote("Come At Me [ R6 ]", 107758370940834)
+AddEmote("Oscillating Fan", 71493999860590)
+AddEmote("Locked In", 110145155419199)
+AddEmote("BirdBrain", 105730788757021)
+AddEmote("Hakari (FULL)", 71056659089869)
+AddEmote("How A Creeper Walk", 108714986908463)
+AddEmote("Hakari (R6)", 127103118569243)
+AddEmote("Strongest Stance", 80146495484274)
+AddEmote("Cat Things", 131193808160056)
+AddEmote("Doggy Things", 105206768873249)
+AddEmote("Wally West Edit", 72247161810866)
+AddEmote("24 Hour Cinderella", 122972776209997)
+AddEmote("Mesmerizer", 92707348383277)
+AddEmote("Stylish Float", 88425531063616)
+AddEmote("SpongeBob Shuffle", 107899954696611)
+AddEmote("Electro Shuffle", 96426537876059)
+AddEmote("Foreign Shuffle", 101507732056031)
+
+
+AddEmote("Caipirinha", 100165303717371)
+AddEmote("Squidward Yell", 109244554368414)
+
+AddEmote("Hakari (Forsaken)", 73271793399763)
+AddEmote("Teto Dance", 93031502567721)
+AddEmote("Michael Myers", 88229016850146)
+AddEmote("Gun Shoot", 105055412595333)
+AddEmote("Torture Dance", 116099356619436)
+AddEmote("Yapping Yap Yap Gesture",119870339321091)
+AddEmote("Luxurious / Springtrap",132151459316300)
+AddEmote("Hand Drill",103882178542598)
+AddEmote("exclamation",82714556886471)
+AddEmote("Mewing / Mogging",135493514352956)
+AddEmote("lemon melon cookie - Miku",79874689836683)
+AddEmote("Cute Jump",80556794144838)
+AddEmote("Billy Bounce", 126516908191316)
+AddEmote("What U Want / Prince Egypt", 133751526608969)
+
+
+
+AddEmote("Rabbit Hole - Miku", 133481721436918)
+AddEmote("Garou", 86200585395371, 39)
+
+AddEmote("Dio Pose", 76736978166708)
+AddEmote("Golden Freddy", 122463450997235)
+AddEmote("Noclip, Speed", 137006085779408)
+AddEmote("Static [Hatsune Miku]", 84534006084837)
+
+AddEmote("GOALL", 78830825254717)
+AddEmote("Lethal Dance", 77108921633993)
+AddEmote("Plug Walk", 100359724990859)
+AddEmote("At Ease", 76993139936388)
+AddEmote("Conga", 97547955535086)
+AddEmote("Barrel", 84511772437190)
+AddEmote("Helicopter", 84555218084038)
+AddEmote("Aura Farm Boat", 88042995626011)
+AddEmote("Prince Of Egypt", 134063402217274)
+AddEmote("Jersey Joe2", 115782117564871, 39)
+AddEmote("Deltarune - Tenna Dance", 73715378215546)
+
+AddEmote("California Girl", 132074413582912)
+AddEmote("Default Dance", 80877772569772)
+
+AddEmote("Shocked meme", 129501229484294)
+AddEmote("Family Guy", 78459263478161)
+AddEmote("Car Transformation", 96887377943085)
+AddEmote("Insanity", 129843344424281)
+AddEmote("Honored One", 121643381580730)
+AddEmote("Sukuna", 91839607010745)
+AddEmote("Dropper", 130358790702800)
+AddEmote("Be Not Afraid", 70635223083942)
+AddEmote("Macarena", 91274761264433)
+AddEmote("Helicopter2", 119431985170060)
+AddEmote("RONALDO", 97547486465713)
+---Update Aug 15, 2025--
+AddEmote("SpiderMan-Hanging Pose",82370885440550)
 --unreleased emotes
+AddEmote("Nya Anime Dance", 126647057611522)
+AddEmote("Do that thang", 113772829398170)
+AddEmote("Squat?", 95441477641149)
+
 AddEmote("Arm Wave", 5915773155)
 AddEmote("Head Banging", 5915779725)
 AddEmote("Face Calisthenics", 9830731012)
 AddEmote("Michael Myers Bounce Dance", 86070647431209)
 AddEmote("Michael Myers Bounce ENHANCED", 84555531182471)
+AddEmote("Slickback", 103789826265487)
 
 --finished loading
 Loading:Destroy()
