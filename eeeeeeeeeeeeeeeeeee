@@ -1,5 +1,4 @@
 --keybind to open is comma
---made by test
 
 local IsStudio = false
 
