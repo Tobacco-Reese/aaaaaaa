@@ -1,297 +1,627 @@
--- Simple Lua/LuaU file obfuscator
--- Usage: lua luau_obfuscator.lua input.lua output.lua
--- WARNING: Back up your original file first!
+--keybind to open is comma
+--made by test
 
-local lfs_ok, lfs = pcall(require, "lfs") -- optional, not required
-math.randomseed(os.time() ~ tostring({}):byte(1,1))
+local IsStudio = false
 
-local keywords = {
-	["and"]=true,["break"]=true,["do"]=true,["else"]=true,["elseif"]=true,["end"]=true,
-	["false"]=true,["for"]=true,["function"]=true,["goto"]=true,["if"]=true,["in"]=true,
-	["local"]=true,["nil"]=true,["not"]=true,["or"]=true,["repeat"]=true,["return"]=true,
-	["then"]=true,["true"]=true,["until"]=true,["while"]=true
-}
+local ContextActionService = game:GetService("ContextActionService")
+local HttpService = game:GetService("HttpService")
+local GuiService = game:GetService("GuiService")
+local CoreGui = game:GetService("CoreGui")
+local AvatarEditorService = game:GetService("AvatarEditorService")
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
 
--- Common globals you probably shouldn't rename:
-local safe_globals = {
-	["print"]=true,["pairs"]=true,["ipairs"]=true,["next"]=true,["table"]=true,["string"]=true,
-	["math"]=true,["tonumber"]=true,["tostring"]=true,["type"]=true,["require"]=true,
-	["coroutine"]=true,["os"]=true,["package"]=true,["select"]=true,["assert"]=true,
-	["error"]=true,["pcall"]=true,["xpcall"]=true,["unpack"]=true,["_G"]=true,["_ENV"]=true
-}
-
--- generate a random identifier (starts with letter)
-local function randomName(len)
-	len = len or math.random(6, 12)
-	local s = {}
-	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	local charsAll = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	s[1] = chars:sub(math.random(1,#chars), math.random(1,#chars))
-	for i = 2, len do
-		s[i] = charsAll:sub(math.random(1,#charsAll), math.random(1,#charsAll))
+local Emotes = {}
+local function AddEmote(name: string, id: IntValue, price: IntValue?)
+	if not (name and id) then
+		return
 	end
-	return table.concat(s)
+
+	table.insert(Emotes, {
+		["name"] = name,
+		["id"] = id,
+		["icon"] = "rbxthumb://type=Asset&id=".. id .."&w=150&h=150",
+		["price"] = price or 0,
+		["index"] = #Emotes + 1,
+		["sort"] = {}
+	})
 end
+local CurrentSort = "newestfirst"
 
--- encode string to string.char(...) representation
-local function encodeStringLiteral(str)
-	-- str is raw content (no quotes)
-	local bytes = {}
-	for i = 1, #str do
-		table.insert(bytes, tostring(string.byte(str, i)))
-	end
-	return "string.char(" .. table.concat(bytes, ",") .. ")"
-end
+local FavoriteOff = "rbxassetid://10651060677"
+local FavoriteOn = "rbxassetid://10651061109"
+local FavoritedEmotes = {}
 
--- Read input
-local arg = arg or {...}
-if #arg < 2 then
-	print("Usage: lua luau_obfuscator.lua input.lua output.lua")
-	os.exit(1)
-end
-local infile = arg[1]
-local outfile = arg[2]
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Emotes"
+ScreenGui.DisplayOrder = 2
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = false
 
-local function readAll(path)
-	local f, err = io.open(path, "rb")
-	if not f then error("Cannot open input file: "..tostring(err)) end
-	local data = f:read("*a")
-	f:close()
-	return data
-end
+local BackFrame = Instance.new("Frame")
+BackFrame.Size = UDim2.new(0.9, 0, 0.5, 0)
+BackFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+BackFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+BackFrame.SizeConstraint = Enum.SizeConstraint.RelativeYY
+BackFrame.BackgroundTransparency = 1
+BackFrame.BorderSizePixel = 0
+BackFrame.Parent = ScreenGui
 
-local function writeAll(path, data)
-	local f, err = io.open(path, "wb")
-	if not f then error("Cannot write output file: "..tostring(err)) end
-	f:write(data)
-	f:close()
-end
+local EmoteName = Instance.new("TextLabel")
+EmoteName.Name = "EmoteName"
+EmoteName.TextScaled = true
+EmoteName.AnchorPoint = Vector2.new(0.5, 0.5)
+EmoteName.Position = UDim2.new(-0.1, 0, 0.5, 0)
+EmoteName.Size = UDim2.new(0.2, 0, 0.2, 0)
+EmoteName.SizeConstraint = Enum.SizeConstraint.RelativeYY
+EmoteName.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+EmoteName.TextColor3 = Color3.new(1, 1, 1)
+EmoteName.BorderSizePixel = 0
+EmoteName.Parent = BackFrame
 
-local src = readAll(infile)
+local Corner = Instance.new("UICorner")
+Corner.Parent = EmoteName
 
--- 1) Extract long bracket comments and strings -- replace with placeholders
-local placeholders = {}
-local ph_id = 0
+local Loading = Instance.new("TextLabel", BackFrame)
+Loading.AnchorPoint = Vector2.new(0.5, 0.5)
+Loading.Text = "Loading..."
+Loading.TextColor3 = Color3.new(1, 1, 1)
+Loading.BackgroundColor3 = Color3.new(0, 0, 0)
+Loading.TextScaled = true
+Loading.BackgroundTransparency = 0.5
+Loading.Size = UDim2.fromScale(0.2, 0.1)
+Loading.Position = UDim2.fromScale(0.5, 0.2)
+Corner:Clone().Parent = Loading
 
-local function makePlaceholder(kind)
-	ph_id = ph_id + 1
-	local key = string.format("__PH_%s_%d__", kind, ph_id)
-	return key
-end
-
--- Helper to stash a value and return its placeholder
-local function stash(kind, val)
-	local key = makePlaceholder(kind)
-	placeholders[key] = {kind = kind, value = val}
-	return key
-end
-
--- Extract long bracket literals (both strings and long comments)
--- Pattern for long bracket: %-%-%[%[ ... %]%] is comment; %[%[ ... %]%] is long string
--- Extract them first to avoid interfering with smaller patterns.
-
--- Replace long comments -- --[[ ... ]]
-src = src:gsub("(%-%-%[%[.-%]%])", function(s) return stash("comment_long", s) end)
-
--- Replace long strings -- [[ ... ]] (not comments)
-src = src:gsub("(%[%[.-%]%])", function(s)
-	-- store without the surrounding [[ ]]
-	local inner = s:sub(3, -3)
-	return stash("string_long", inner)
+local Frame = Instance.new("ScrollingFrame")
+Frame.Size = UDim2.new(1, 0, 1, 0)
+Frame.CanvasSize = UDim2.new(0, 0, 0, 0)
+Frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Frame.ScrollingDirection = Enum.ScrollingDirection.Y
+Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+Frame.BackgroundTransparency = 1
+Frame.ScrollBarThickness = 5
+Frame.BorderSizePixel = 0
+Frame.MouseLeave:Connect(function()
+	EmoteName.Text = "Select an Emote"
 end)
+Frame.Parent = BackFrame
 
--- 2) Extract short (single-line) comments: --...
-src = src:gsub("(%-%-.-\n)", function(s) return stash("comment_short", s) end)
+local Grid = Instance.new("UIGridLayout")
+Grid.CellSize = UDim2.new(0.105, 0, 0, 0)
+Grid.CellPadding = UDim2.new(0.006, 0, 0.006, 0)
+Grid.SortOrder = Enum.SortOrder.LayoutOrder
+Grid.Parent = Frame
 
--- 3) Extract quoted strings: "..." and '...' (handles simple escapes \" \')
--- We'll capture backslash-escaped chars too to avoid early termination.
-local function replaceQuotedStrings(code)
-	local i = 1
-	local out = {}
-	while i <= #code do
-		local c = code:sub(i,i)
-		if c == '"' or c == "'" then
-			local quote = c
-			local j = i + 1
-			local esc = false
-			while j <= #code do
-				local cc = code:sub(j,j)
-				if cc == "\\" and not esc then
-					esc = true
-					j = j + 1
-				elseif cc == quote and not esc then
-					break
+local SortFrame = Instance.new("Frame")
+SortFrame.Visible = false
+SortFrame.BorderSizePixel = 0
+SortFrame.Position = UDim2.new(1, 5, -0.125, 0)
+SortFrame.Size = UDim2.new(0.2, 0, 0, 0)
+SortFrame.AutomaticSize = Enum.AutomaticSize.Y
+SortFrame.BackgroundTransparency = 1
+Corner:Clone().Parent = SortFrame
+SortFrame.Parent = BackFrame
+
+local SortList = Instance.new("UIListLayout")
+SortList.Padding = UDim.new(0.02, 0)
+SortList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SortList.VerticalAlignment = Enum.VerticalAlignment.Top
+SortList.SortOrder = Enum.SortOrder.LayoutOrder
+SortList.Parent = SortFrame
+
+local function SortEmotes()
+	for i,Emote in pairs(Emotes) do
+		local EmoteButton = Frame:FindFirstChild(Emote.id)
+		if not EmoteButton then
+			continue
+		end
+		local IsFavorited = table.find(FavoritedEmotes, Emote.id)
+		EmoteButton.LayoutOrder = Emote.sort[CurrentSort] + ((IsFavorited and 0) or #Emotes)
+		EmoteButton.number.Text = Emote.sort[CurrentSort]
+	end
+end
+
+local function createsort(order, text, sort)
+	local CreatedSort = Instance.new("TextButton")
+	CreatedSort.SizeConstraint = Enum.SizeConstraint.RelativeXX
+	CreatedSort.Size = UDim2.new(1, 0, 0.2, 0)
+	CreatedSort.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	CreatedSort.LayoutOrder = order
+	CreatedSort.TextColor3 = Color3.new(1, 1, 1)
+	CreatedSort.Text = text
+	CreatedSort.TextScaled = true
+	CreatedSort.BorderSizePixel = 0
+	Corner:Clone().Parent = CreatedSort
+	CreatedSort.Parent = SortFrame
+	CreatedSort.MouseButton1Click:Connect(function()
+		SortFrame.Visible = false
+		CurrentSort = sort
+		SortEmotes()
+	end)
+	return CreatedSort
+end
+
+createsort(1, "Newest First", "newestfirst")
+createsort(2, "Oldest First", "oldestfirst")
+createsort(3, "Alphabetically First", "alphabeticfirst")
+createsort(4, "Alphabetically Last", "alphabeticlast")
+createsort(5, "Highest Price", "highestprice")
+createsort(6, "Lowest Price", "lowestprice")
+
+local SortButton = Instance.new("TextButton")
+SortButton.BorderSizePixel = 0
+SortButton.AnchorPoint = Vector2.new(0.5, 0.5)
+SortButton.Position = UDim2.new(0.925, -5, -0.075, 0)
+SortButton.Size = UDim2.new(0.15, 0, 0.1, 0)
+SortButton.TextScaled = true
+SortButton.TextColor3 = Color3.new(1, 1, 1)
+SortButton.BackgroundColor3 = Color3.new(0, 0, 0)
+SortButton.BackgroundTransparency = 0.3
+SortButton.Text = "Sort"
+SortButton.MouseButton1Click:Connect(function()
+	SortFrame.Visible = not SortFrame.Visible
+end)
+Corner:Clone().Parent = SortButton
+SortButton.Parent = BackFrame
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.BorderSizePixel = 0
+CloseButton.AnchorPoint = Vector2.new(0.5, 0.5)
+CloseButton.Position = UDim2.new(0.075, 0, -0.075, 0)
+CloseButton.Size = UDim2.new(0.15, 0, 0.1, 0)
+CloseButton.TextScaled = true
+CloseButton.TextColor3 = Color3.new(1, 1, 1)
+CloseButton.BackgroundColor3 = Color3.new(0, 0, 0)
+CloseButton.BackgroundTransparency = 0.3
+CloseButton.Text = "Close"
+CloseButton.MouseButton1Click:Connect(function()
+	ScreenGui.Enabled = false
+end)
+Corner:Clone().Parent = CloseButton
+CloseButton.Parent = BackFrame
+
+local SearchBar = Instance.new("TextBox")
+SearchBar.BorderSizePixel = 0
+SearchBar.AnchorPoint = Vector2.new(0.5, 0.5)
+SearchBar.Position = UDim2.new(0.5, 0, -0.075, 0)
+SearchBar.Size = UDim2.new(0.55, 0, 0.1, 0)
+SearchBar.TextScaled = true
+SearchBar.PlaceholderText = "Search"
+SearchBar.TextColor3 = Color3.new(1, 1, 1)
+SearchBar.BackgroundColor3 = Color3.new(0, 0, 0)
+SearchBar.BackgroundTransparency = 0.3
+SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+	local text = SearchBar.Text:lower()
+	local buttons = Frame:GetChildren()
+	if text ~= text:sub(1,50) then
+		SearchBar.Text = SearchBar.Text:sub(1,50)
+		text = SearchBar.Text:lower()
+	end
+	if text ~= ""  then
+		for i,button in pairs(buttons) do
+			if button:IsA("GuiButton") then
+				local name = button:GetAttribute("name"):lower()
+				if name:match(text) then
+					button.Visible = true
 				else
-					esc = false
-					j = j + 1
+					button.Visible = false
 				end
 			end
-			local str = code:sub(i+1, j-1)
-			local ph = stash("string_short", str)
-			table.insert(out, ph)
-			i = j + 1
-		else
-			table.insert(out, c)
-			i = i + 1
 		end
-	end
-	return table.concat(out)
-end
-
-src = replaceQuotedStrings(src)
-
--- Now `src` has placeholders for all strings and comments.
-
--- 4) Find candidate identifiers to rename.
--- We'll look for:
---    local <name> [= ...] or local <a>, <b>, <c>
---    function <name>(...)  (only top-level simple names, not table methods)
---    function <name>:<method>(...) & function tbl.name(...) we skip table.field names
---    function name.(...) skip
--- For parameters inside "function name(params...)" we will also rename those params.
-
-local nameMap = {}        -- original -> obf
-local usedNames = {}      -- to avoid collisions
-local function reserveName(n)
-	usedNames[n] = true
-end
--- reserve Lua keywords and safe globals
-for k,_ in pairs(keywords) do reserveName(k) end
-for k,_ in pairs(safe_globals) do reserveName(k) end
-
--- utility to generate unique random name
-local function genUniqueName()
-	local tries = 0
-	while true do
-		local n = randomName()
-		if not usedNames[n] then
-			usedNames[n] = true
-			return n
-		end
-		tries = tries + 1
-		if tries > 1000 then error("ran out of random names") end
-	end
-end
-
--- capture local declarations
-for decl in src:gmatch("local%s+[%w_%,%s]+") do
-	-- decl like "local a, b ="
-	local tail = decl:sub(7) -- after "local "
-	for name in tail:gmatch("([_%a][_%w]*)") do
-		if not nameMap[name] and not keywords[name] and not safe_globals[name] then
-			nameMap[name] = genUniqueName()
-		end
-	end
-end
-
--- capture function <name> (...) but ignore function tbl.name or function tbl:name
-for funcDecl in src:gmatch("function%s+([_%a][_%w]*)%s*%(") do
-	local name = funcDecl
-	if name and not nameMap[name] and not keywords[name] and not safe_globals[name] then
-		nameMap[name] = genUniqueName()
-	end
-end
-
--- capture simple assignments like "localName = function(" (global function assignment)
-for name in src:gmatch("([_%a][_%w]*)%s*=%s*function%s*%(") do
-	if name and not nameMap[name] and not keywords[name] and not safe_globals[name] then
-		nameMap[name] = genUniqueName()
-	end
-end
-
--- capture params in function definitions: "function foo(a, b, c)"
--- We'll rename params too and store them per-function to be applied locally.
--- For simplicity, we'll rename parameters globally (this may rarely collide)
-for funcHeader in src:gmatch("function%s+[_%a][_%w]*%s*%b()") do
-	local params = funcHeader:match("%b()")
-	if params then
-		params = params:sub(2, -2)
-		for p in params:gmatch("([_%a][_%w]*)") do
-			if not nameMap[p] and not keywords[p] and not safe_globals[p] then
-				nameMap[p] = genUniqueName()
-			end
-		end
-	end
-end
-
--- Also capture "function (a,b)" anonymous function params — these are local to the expression; rename them as well
-for anon in src:gmatch("function%s*%b()") do
-	local params = anon:match("%b()")
-	if params then
-		params = params:sub(2, -2)
-		for p in params:gmatch("([_%a][_%w]*)") do
-			if not nameMap[p] and not keywords[p] and not safe_globals[p] then
-				nameMap[p] = genUniqueName()
-			end
-		end
-	end
-end
-
--- Summary: nameMap now contains many names mapped to obfuscated alternatives.
-
--- 5) Replace identifiers in src. Use frontier pattern to avoid partial matches.
--- Build a sorted list by length descending to avoid partial replacements (e.g., "a" before "ab")
-local names = {}
-for orig, obf in pairs(nameMap) do table.insert(names, orig) end
-table.sort(names, function(a,b) return #a > #b end)
-
-for _, orig in ipairs(names) do
-	local obf = nameMap[orig]
-	-- boundary pattern: %f[%w_] ensures frontier for start, but Lua 5.1 does not have %f
-	-- We'll attempt to use patterns matching non-word before and after (or start/end)
-	-- Replace occurrences where it's not part of field access (skip ".name" and ":name")
-	-- Pattern explanation (approx):
-	-- (%W)orig(%W)  -> keep surrounding chars
-	-- Handle start of string and end
-	-- We will do multiple gsub variants to cover common cases
-
-	-- 1) start of string or non-word before and non-word after
-	src = src:gsub("(%f[%w_])" .. orig .. "(%f[^%w_])", function(a,b) return obf end)
-	-- fallback: if frontier pattern is unavailable in older Lua, use these:
-	-- non-dot before and non-word after
-	src = src:gsub("([^%.%w_])" .. orig .. "([^%w_])", function(a,b) return a .. obf .. b end)
-	-- start of file
-	src = src:gsub("^" .. orig .. "([^%w_])", function(b) return obf .. b end)
-	-- end-of-file
-	src = src:gsub("([^%w_])" .. orig .. "$", function(a) return a .. obf end)
-end
-
--- 6) Replace string placeholders with encoded expression (string.char(...))
-for ph, info in pairs(placeholders) do
-	if info.kind == "string_short" or info.kind == "string_long" then
-		local encoded = encodeStringLiteral(info.value)
-		-- Surround with parentheses so concatenations work
-		src = src:gsub(ph, "(" .. encoded .. ")")
-	elseif info.kind == "comment_short" or info.kind == "comment_long" then
-		-- Option: remove comments to reduce size, or keep them. We'll keep them but shorten.
-		-- Keep short comments as --[[removed]] style with hint
-		local short = "--[[comment removed]]"
-		-- Place a newline if original had newline inside
-		if info.value:find("\n") then short = short .. "\n" end
-		src = src:gsub(ph, short)
 	else
-		-- safe default: replace with original
-		src = src:gsub(ph, info.value)
+		for i,button in pairs(buttons) do
+			if button:IsA("GuiButton") then
+				button.Visible = true
+			end
+		end
+	end
+end)
+Corner:Clone().Parent = SearchBar
+SearchBar.Parent = BackFrame
+
+local function openemotes(name, state, input)
+	if state == Enum.UserInputState.Begin then
+		ScreenGui.Enabled = not ScreenGui.Enabled
 	end
 end
 
--- 7) Insert junk code near top to confuse readers
-local junkLines = {}
-for i=1, math.random(3,6) do
-	local var = genUniqueName()
-	local val = math.random(1, 99999)
-	table.insert(junkLines, ("local %s = %d"):format(var, val))
+if IsStudio then
+	ContextActionService:BindActionAtPriority(
+		"Emote Menu",
+		openemotes,
+		true,
+		2001,
+		Enum.KeyCode.Comma
+	)
+else
+	ContextActionService:BindCoreActionAtPriority(
+		"Emote Menu",
+		openemotes,
+		true,
+		2001,
+		Enum.KeyCode.Comma
+	)
 end
-table.insert(junkLines, "do local _J=0 for i=1,1 do _J=_J+1 end end")
-local junkHeader = "--[[obf junk]]\n" .. table.concat(junkLines, "\n") .. "\n--[[end junk]]\n\n"
 
-local final = junkHeader .. src
+local inputconnect
+ScreenGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if ScreenGui.Enabled == true then
+		EmoteName.Text = "Select an Emote"
+		SearchBar.Text = ""
+		SortFrame.Visible = false
+		GuiService:SetEmotesMenuOpen(false)
+		inputconnect = UserInputService.InputBegan:Connect(function(input, processed)
+			if not processed then
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					ScreenGui.Enabled = false
+				end
+			end
+		end)
+	else
+		inputconnect:Disconnect()
+	end
+end)
 
--- 8) Post-process — small beautify: collapse multiple blank lines
-final = final:gsub("\n%s*\n%s*\n", "\n\n")
+if not IsStudio then
+	GuiService.EmotesMenuOpenChanged:Connect(function(isopen)
+		if isopen then
+			ScreenGui.Enabled = false
+		end
+	end)
+end
 
--- 9) Write output
-writeAll(outfile, final)
+GuiService.MenuOpened:Connect(function()
+	ScreenGui.Enabled = false
+end)
 
-print(("Obfuscation complete. Output written to %s"):format(outfile))
-print(("Renamed %d identifiers."):format(#names))
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
+local LocalPlayer = Players.LocalPlayer
+
+if IsStudio then
+	ScreenGui.Parent = LocalPlayer.PlayerGui
+else
+	--thanks inf yield
+	local SynV3 = syn and DrawingImmediate
+	if (not is_sirhurt_closure) and (not SynV3) and (syn and syn.protect_gui) then
+		syn.protect_gui(ScreenGui)
+		ScreenGui.Parent = CoreGui
+	elseif get_hidden_gui or gethui then
+		local hiddenUI = get_hidden_gui or gethui
+		ScreenGui.Parent = hiddenUI()
+	else
+		ScreenGui.Parent = CoreGui
+	end
+end
+
+
+local function SendNotification(title, text)
+	if (not IsStudio) and syn and syn.toast_notification then
+		syn.toast_notification({
+			Type = ToastType.Error,
+			Title = title,
+			Content = text
+		})
+	else
+		StarterGui:SetCore("SendNotification", {
+			Title = title,
+			Text = text
+		})
+	end
+end
+
+local function HumanoidPlayEmote(humanoid, name, id)
+	if IsStudio then
+		return humanoid:PlayEmote(name)
+	else
+		return humanoid:PlayEmoteAndGetAnimTrackById(id)
+	end
+end
+
+local function PlayEmote(name: string, id: IntValue)
+	ScreenGui.Enabled = false
+	SearchBar.Text = ""
+	local Humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+	local Description = Humanoid and Humanoid:FindFirstChildOfClass("HumanoidDescription")
+	if not Description then
+		return
+	end
+	if LocalPlayer.Character.Humanoid.RigType ~= Enum.HumanoidRigType.R6 then
+		local succ, err = pcall(function()
+			HumanoidPlayEmote(Humanoid, name, id)
+		end)
+		if not succ then
+			Description:AddEmote(name, id)
+			HumanoidPlayEmote(Humanoid, name, id)
+		end
+	else
+		SendNotification(
+			"r6? lol",
+			"you gotta be r15 dude"
+		)
+	end
+end
+
+local function WaitForChildOfClass(parent, class)
+	local child = parent:FindFirstChildOfClass(class)
+	while not child or child.ClassName ~= class do
+		child = parent.ChildAdded:Wait()
+	end
+	return child
+end
+
+local params = CatalogSearchParams.new()
+params.AssetTypes = {Enum.AvatarAssetType.EmoteAnimation}
+params.SortType = Enum.CatalogSortType.RecentlyCreated
+params.SortAggregation = Enum.CatalogSortAggregation.AllTime
+params.IncludeOffSale = true
+params.CreatorName = "Roblox"
+params.Limit = 120
+
+local function getCatalogPage()
+	local success, catalogPage = pcall(function()
+		return AvatarEditorService:SearchCatalog(params)
+	end)
+	if not success then
+		task.wait(5)
+		return getCatalogPage()
+	end
+	return catalogPage
+end
+
+local catalogPage = getCatalogPage()
+
+local pages = {}
+
+while true do
+	local currentPage = catalogPage:GetCurrentPage()
+	table.insert(pages, currentPage)
+	if catalogPage.IsFinished then
+		break
+	end
+	local function AdvanceToNextPage()
+		local success = pcall(function()
+			catalogPage:AdvanceToNextPageAsync()
+		end)
+		if not success then
+			task.wait(5)
+			return AdvanceToNextPage()
+		end
+	end
+	AdvanceToNextPage()
+end
+
+local totalEmotes = {}
+for _, page in pairs(pages) do
+	for _, emote in pairs(page) do
+		table.insert(totalEmotes, emote)
+	end
+end
+
+for i, Emote in pairs(totalEmotes) do
+	AddEmote(Emote.Name, Emote.Id, Emote.Price)
+end
+
+--unreleased emotes
+AddEmote("Arm Wave", 5915773155)
+AddEmote("Head Banging", 5915779725)
+AddEmote("Face Calisthenics", 9830731012)
+AddEmote("Michael Myers Bounce Dance", 86070647431209)
+AddEmote("Michael Myers Bounce ENHANCED", 84555531182471)
+
+--finished loading
+Loading:Destroy()
+
+--sorting options setup
+table.sort(Emotes, function(a, b)
+	return a.index < b.index
+end)
+for i,v in pairs(Emotes) do
+	v.sort.newestfirst = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.index > b.index
+end)
+for i,v in pairs(Emotes) do
+	v.sort.oldestfirst = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.name:lower() < b.name:lower()
+end)
+for i,v in pairs(Emotes) do
+	v.sort.alphabeticfirst = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.name:lower() > b.name:lower()
+end)
+for i,v in pairs(Emotes) do
+	v.sort.alphabeticlast = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.price < b.price
+end)
+for i,v in pairs(Emotes) do
+	v.sort.lowestprice = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.price > b.price
+end)
+for i,v in pairs(Emotes) do
+	v.sort.highestprice = i
+end
+
+
+local function IsFileFunc(...)
+	if IsStudio then
+		return
+	elseif isfile then
+		return isfile(...)
+	end
+end
+
+local function WriteFileFunc(...)
+	if IsStudio then
+		return
+	elseif writefile then
+		return writefile(...)
+	end
+end
+
+local function ReadFileFunc(...)
+	if IsStudio then
+		return
+	elseif readfile then
+		return readfile(...)
+	end
+end
+
+if not IsStudio then
+	if IsFileFunc("FavoritedEmotes.txt") then
+		if not pcall(function()
+			FavoritedEmotes = HttpService:JSONDecode(ReadFileFunc("FavoritedEmotes.txt"))
+		end) then
+			FavoritedEmotes = {}
+		end
+	else
+		WriteFileFunc("FavoritedEmotes.txt", HttpService:JSONEncode(FavoritedEmotes))
+	end
+	local UpdatedFavorites = {}
+	for i,name in pairs(FavoritedEmotes) do
+		if typeof(name) == "string" then
+			for i,emote in pairs(Emotes) do
+				if emote.name == name then
+					table.insert(UpdatedFavorites, emote.id)
+					break
+				end
+			end
+		end
+	end
+	if #UpdatedFavorites ~= 0 then
+		FavoritedEmotes = UpdatedFavorites
+		WriteFileFunc("FavoritedEmotes.txt", HttpService:JSONEncode(FavoritedEmotes))
+	end
+end
+
+
+local function CharacterAdded(Character)
+	for i,v in pairs(Frame:GetChildren()) do
+		if not v:IsA("UIGridLayout") then
+			v:Destroy()
+		end
+	end
+	local Humanoid = WaitForChildOfClass(Character, "Humanoid")
+	local Description = Humanoid:WaitForChild("HumanoidDescription", 5) or Instance.new("HumanoidDescription", Humanoid)
+	local random = Instance.new("TextButton")
+	local Ratio = Instance.new("UIAspectRatioConstraint")
+	Ratio.AspectType = Enum.AspectType.ScaleWithParentSize
+	Ratio.Parent = random
+	random.LayoutOrder = 0
+	random.TextColor3 = Color3.new(1, 1, 1)
+	random.BorderSizePixel = 0
+	random.BackgroundTransparency = 0.5
+	random.BackgroundColor3 = Color3.new(0, 0, 0)
+	random.TextScaled = true
+	random.Text = "Random"
+	random:SetAttribute("name", "")
+	Corner:Clone().Parent = random
+	random.MouseButton1Click:Connect(function()
+		local randomemote = Emotes[math.random(1, #Emotes)]
+		PlayEmote(randomemote.name, randomemote.id)
+	end)
+	random.MouseEnter:Connect(function()
+		EmoteName.Text = "Random"
+	end)
+	random.Parent = Frame
+	for i,Emote in pairs(Emotes) do
+		Description:AddEmote(Emote.name, Emote.id)
+		local EmoteButton = Instance.new("ImageButton")
+		local IsFavorited = table.find(FavoritedEmotes, Emote.id)
+		EmoteButton.LayoutOrder = Emote.sort[CurrentSort] + ((IsFavorited and 0) or #Emotes)
+		EmoteButton.Name = Emote.id
+		EmoteButton:SetAttribute("name", Emote.name)
+		Corner:Clone().Parent = EmoteButton
+		EmoteButton.Image = Emote.icon
+		EmoteButton.BackgroundTransparency = 0.5
+		EmoteButton.BackgroundColor3 = Color3.new(0, 0, 0)
+		EmoteButton.BorderSizePixel = 0
+		Ratio:Clone().Parent = EmoteButton
+		local EmoteNumber = Instance.new("TextLabel")
+		EmoteNumber.Name = "number"
+		EmoteNumber.TextScaled = true
+		EmoteNumber.BackgroundTransparency = 1
+		EmoteNumber.TextColor3 = Color3.new(1, 1, 1)
+		EmoteNumber.BorderSizePixel = 0
+		EmoteNumber.AnchorPoint = Vector2.new(0.5, 0.5)
+		EmoteNumber.Size = UDim2.new(0.2, 0, 0.2, 0)
+		EmoteNumber.Position = UDim2.new(0.1, 0, 0.9, 0)
+		EmoteNumber.Text = Emote.sort[CurrentSort]
+		EmoteNumber.TextXAlignment = Enum.TextXAlignment.Center
+		EmoteNumber.TextYAlignment = Enum.TextYAlignment.Center
+		local UIStroke = Instance.new("UIStroke")
+		UIStroke.Transparency = 0.5
+		UIStroke.Parent = EmoteNumber
+		EmoteNumber.Parent = EmoteButton
+		EmoteButton.Parent = Frame
+		EmoteButton.MouseButton1Click:Connect(function()
+			PlayEmote(Emote.name, Emote.id)
+		end)
+		EmoteButton.MouseEnter:Connect(function()
+			EmoteName.Text = Emote.name
+		end)
+		local Favorite = Instance.new("ImageButton")
+		Favorite.Name = "favorite"
+		if table.find(FavoritedEmotes, Emote.id) then
+			Favorite.Image = FavoriteOn
+		else
+			Favorite.Image = FavoriteOff
+		end
+		Favorite.AnchorPoint = Vector2.new(0.5, 0.5)
+		Favorite.Size = UDim2.new(0.2, 0, 0.2, 0)
+		Favorite.Position = UDim2.new(0.9, 0, 0.9, 0)
+		Favorite.BorderSizePixel = 0
+		Favorite.BackgroundTransparency = 1
+		Favorite.Parent = EmoteButton
+		Favorite.MouseButton1Click:Connect(function()
+			local index = table.find(FavoritedEmotes, Emote.id)
+			if index then
+				table.remove(FavoritedEmotes, index)
+				Favorite.Image = FavoriteOff
+				EmoteButton.LayoutOrder = Emote.sort[CurrentSort] + #Emotes
+			else
+				table.insert(FavoritedEmotes, Emote.id)
+				Favorite.Image = FavoriteOn
+				EmoteButton.LayoutOrder = Emote.sort[CurrentSort]
+			end
+			WriteFileFunc("FavoritedEmotes.txt", HttpService:JSONEncode(FavoritedEmotes))
+		end)
+	end
+	for i=1,9 do
+		local EmoteButton = Instance.new("Frame")
+		EmoteButton.LayoutOrder = 2147483647
+		EmoteButton.Name = "filler"
+		EmoteButton.BackgroundTransparency = 1
+		EmoteButton.BorderSizePixel = 0
+		Ratio:Clone().Parent = EmoteButton
+		EmoteButton.Visible = true
+		EmoteButton.Parent = Frame
+		EmoteButton.MouseEnter:Connect(function()
+			EmoteName.Text = "Select an Emote"
+		end)
+	end
+end
+
+if LocalPlayer.Character then
+	CharacterAdded(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(CharacterAdded)
