@@ -1,0 +1,297 @@
+-- Simple Lua/LuaU file obfuscator
+-- Usage: lua luau_obfuscator.lua input.lua output.lua
+-- WARNING: Back up your original file first!
+
+local lfs_ok, lfs = pcall(require, "lfs") -- optional, not required
+math.randomseed(os.time() ~ tostring({}):byte(1,1))
+
+local keywords = {
+	["and"]=true,["break"]=true,["do"]=true,["else"]=true,["elseif"]=true,["end"]=true,
+	["false"]=true,["for"]=true,["function"]=true,["goto"]=true,["if"]=true,["in"]=true,
+	["local"]=true,["nil"]=true,["not"]=true,["or"]=true,["repeat"]=true,["return"]=true,
+	["then"]=true,["true"]=true,["until"]=true,["while"]=true
+}
+
+-- Common globals you probably shouldn't rename:
+local safe_globals = {
+	["print"]=true,["pairs"]=true,["ipairs"]=true,["next"]=true,["table"]=true,["string"]=true,
+	["math"]=true,["tonumber"]=true,["tostring"]=true,["type"]=true,["require"]=true,
+	["coroutine"]=true,["os"]=true,["package"]=true,["select"]=true,["assert"]=true,
+	["error"]=true,["pcall"]=true,["xpcall"]=true,["unpack"]=true,["_G"]=true,["_ENV"]=true
+}
+
+-- generate a random identifier (starts with letter)
+local function randomName(len)
+	len = len or math.random(6, 12)
+	local s = {}
+	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local charsAll = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	s[1] = chars:sub(math.random(1,#chars), math.random(1,#chars))
+	for i = 2, len do
+		s[i] = charsAll:sub(math.random(1,#charsAll), math.random(1,#charsAll))
+	end
+	return table.concat(s)
+end
+
+-- encode string to string.char(...) representation
+local function encodeStringLiteral(str)
+	-- str is raw content (no quotes)
+	local bytes = {}
+	for i = 1, #str do
+		table.insert(bytes, tostring(string.byte(str, i)))
+	end
+	return "string.char(" .. table.concat(bytes, ",") .. ")"
+end
+
+-- Read input
+local arg = arg or {...}
+if #arg < 2 then
+	print("Usage: lua luau_obfuscator.lua input.lua output.lua")
+	os.exit(1)
+end
+local infile = arg[1]
+local outfile = arg[2]
+
+local function readAll(path)
+	local f, err = io.open(path, "rb")
+	if not f then error("Cannot open input file: "..tostring(err)) end
+	local data = f:read("*a")
+	f:close()
+	return data
+end
+
+local function writeAll(path, data)
+	local f, err = io.open(path, "wb")
+	if not f then error("Cannot write output file: "..tostring(err)) end
+	f:write(data)
+	f:close()
+end
+
+local src = readAll(infile)
+
+-- 1) Extract long bracket comments and strings -- replace with placeholders
+local placeholders = {}
+local ph_id = 0
+
+local function makePlaceholder(kind)
+	ph_id = ph_id + 1
+	local key = string.format("__PH_%s_%d__", kind, ph_id)
+	return key
+end
+
+-- Helper to stash a value and return its placeholder
+local function stash(kind, val)
+	local key = makePlaceholder(kind)
+	placeholders[key] = {kind = kind, value = val}
+	return key
+end
+
+-- Extract long bracket literals (both strings and long comments)
+-- Pattern for long bracket: %-%-%[%[ ... %]%] is comment; %[%[ ... %]%] is long string
+-- Extract them first to avoid interfering with smaller patterns.
+
+-- Replace long comments -- --[[ ... ]]
+src = src:gsub("(%-%-%[%[.-%]%])", function(s) return stash("comment_long", s) end)
+
+-- Replace long strings -- [[ ... ]] (not comments)
+src = src:gsub("(%[%[.-%]%])", function(s)
+	-- store without the surrounding [[ ]]
+	local inner = s:sub(3, -3)
+	return stash("string_long", inner)
+end)
+
+-- 2) Extract short (single-line) comments: --...
+src = src:gsub("(%-%-.-\n)", function(s) return stash("comment_short", s) end)
+
+-- 3) Extract quoted strings: "..." and '...' (handles simple escapes \" \')
+-- We'll capture backslash-escaped chars too to avoid early termination.
+local function replaceQuotedStrings(code)
+	local i = 1
+	local out = {}
+	while i <= #code do
+		local c = code:sub(i,i)
+		if c == '"' or c == "'" then
+			local quote = c
+			local j = i + 1
+			local esc = false
+			while j <= #code do
+				local cc = code:sub(j,j)
+				if cc == "\\" and not esc then
+					esc = true
+					j = j + 1
+				elseif cc == quote and not esc then
+					break
+				else
+					esc = false
+					j = j + 1
+				end
+			end
+			local str = code:sub(i+1, j-1)
+			local ph = stash("string_short", str)
+			table.insert(out, ph)
+			i = j + 1
+		else
+			table.insert(out, c)
+			i = i + 1
+		end
+	end
+	return table.concat(out)
+end
+
+src = replaceQuotedStrings(src)
+
+-- Now `src` has placeholders for all strings and comments.
+
+-- 4) Find candidate identifiers to rename.
+-- We'll look for:
+--    local <name> [= ...] or local <a>, <b>, <c>
+--    function <name>(...)  (only top-level simple names, not table methods)
+--    function <name>:<method>(...) & function tbl.name(...) we skip table.field names
+--    function name.(...) skip
+-- For parameters inside "function name(params...)" we will also rename those params.
+
+local nameMap = {}        -- original -> obf
+local usedNames = {}      -- to avoid collisions
+local function reserveName(n)
+	usedNames[n] = true
+end
+-- reserve Lua keywords and safe globals
+for k,_ in pairs(keywords) do reserveName(k) end
+for k,_ in pairs(safe_globals) do reserveName(k) end
+
+-- utility to generate unique random name
+local function genUniqueName()
+	local tries = 0
+	while true do
+		local n = randomName()
+		if not usedNames[n] then
+			usedNames[n] = true
+			return n
+		end
+		tries = tries + 1
+		if tries > 1000 then error("ran out of random names") end
+	end
+end
+
+-- capture local declarations
+for decl in src:gmatch("local%s+[%w_%,%s]+") do
+	-- decl like "local a, b ="
+	local tail = decl:sub(7) -- after "local "
+	for name in tail:gmatch("([_%a][_%w]*)") do
+		if not nameMap[name] and not keywords[name] and not safe_globals[name] then
+			nameMap[name] = genUniqueName()
+		end
+	end
+end
+
+-- capture function <name> (...) but ignore function tbl.name or function tbl:name
+for funcDecl in src:gmatch("function%s+([_%a][_%w]*)%s*%(") do
+	local name = funcDecl
+	if name and not nameMap[name] and not keywords[name] and not safe_globals[name] then
+		nameMap[name] = genUniqueName()
+	end
+end
+
+-- capture simple assignments like "localName = function(" (global function assignment)
+for name in src:gmatch("([_%a][_%w]*)%s*=%s*function%s*%(") do
+	if name and not nameMap[name] and not keywords[name] and not safe_globals[name] then
+		nameMap[name] = genUniqueName()
+	end
+end
+
+-- capture params in function definitions: "function foo(a, b, c)"
+-- We'll rename params too and store them per-function to be applied locally.
+-- For simplicity, we'll rename parameters globally (this may rarely collide)
+for funcHeader in src:gmatch("function%s+[_%a][_%w]*%s*%b()") do
+	local params = funcHeader:match("%b()")
+	if params then
+		params = params:sub(2, -2)
+		for p in params:gmatch("([_%a][_%w]*)") do
+			if not nameMap[p] and not keywords[p] and not safe_globals[p] then
+				nameMap[p] = genUniqueName()
+			end
+		end
+	end
+end
+
+-- Also capture "function (a,b)" anonymous function params — these are local to the expression; rename them as well
+for anon in src:gmatch("function%s*%b()") do
+	local params = anon:match("%b()")
+	if params then
+		params = params:sub(2, -2)
+		for p in params:gmatch("([_%a][_%w]*)") do
+			if not nameMap[p] and not keywords[p] and not safe_globals[p] then
+				nameMap[p] = genUniqueName()
+			end
+		end
+	end
+end
+
+-- Summary: nameMap now contains many names mapped to obfuscated alternatives.
+
+-- 5) Replace identifiers in src. Use frontier pattern to avoid partial matches.
+-- Build a sorted list by length descending to avoid partial replacements (e.g., "a" before "ab")
+local names = {}
+for orig, obf in pairs(nameMap) do table.insert(names, orig) end
+table.sort(names, function(a,b) return #a > #b end)
+
+for _, orig in ipairs(names) do
+	local obf = nameMap[orig]
+	-- boundary pattern: %f[%w_] ensures frontier for start, but Lua 5.1 does not have %f
+	-- We'll attempt to use patterns matching non-word before and after (or start/end)
+	-- Replace occurrences where it's not part of field access (skip ".name" and ":name")
+	-- Pattern explanation (approx):
+	-- (%W)orig(%W)  -> keep surrounding chars
+	-- Handle start of string and end
+	-- We will do multiple gsub variants to cover common cases
+
+	-- 1) start of string or non-word before and non-word after
+	src = src:gsub("(%f[%w_])" .. orig .. "(%f[^%w_])", function(a,b) return obf end)
+	-- fallback: if frontier pattern is unavailable in older Lua, use these:
+	-- non-dot before and non-word after
+	src = src:gsub("([^%.%w_])" .. orig .. "([^%w_])", function(a,b) return a .. obf .. b end)
+	-- start of file
+	src = src:gsub("^" .. orig .. "([^%w_])", function(b) return obf .. b end)
+	-- end-of-file
+	src = src:gsub("([^%w_])" .. orig .. "$", function(a) return a .. obf end)
+end
+
+-- 6) Replace string placeholders with encoded expression (string.char(...))
+for ph, info in pairs(placeholders) do
+	if info.kind == "string_short" or info.kind == "string_long" then
+		local encoded = encodeStringLiteral(info.value)
+		-- Surround with parentheses so concatenations work
+		src = src:gsub(ph, "(" .. encoded .. ")")
+	elseif info.kind == "comment_short" or info.kind == "comment_long" then
+		-- Option: remove comments to reduce size, or keep them. We'll keep them but shorten.
+		-- Keep short comments as --[[removed]] style with hint
+		local short = "--[[comment removed]]"
+		-- Place a newline if original had newline inside
+		if info.value:find("\n") then short = short .. "\n" end
+		src = src:gsub(ph, short)
+	else
+		-- safe default: replace with original
+		src = src:gsub(ph, info.value)
+	end
+end
+
+-- 7) Insert junk code near top to confuse readers
+local junkLines = {}
+for i=1, math.random(3,6) do
+	local var = genUniqueName()
+	local val = math.random(1, 99999)
+	table.insert(junkLines, ("local %s = %d"):format(var, val))
+end
+table.insert(junkLines, "do local _J=0 for i=1,1 do _J=_J+1 end end")
+local junkHeader = "--[[obf junk]]\n" .. table.concat(junkLines, "\n") .. "\n--[[end junk]]\n\n"
+
+local final = junkHeader .. src
+
+-- 8) Post-process — small beautify: collapse multiple blank lines
+final = final:gsub("\n%s*\n%s*\n", "\n\n")
+
+-- 9) Write output
+writeAll(outfile, final)
+
+print(("Obfuscation complete. Output written to %s"):format(outfile))
+print(("Renamed %d identifiers."):format(#names))
