@@ -566,6 +566,7 @@ AddEmote("Helicopter2", 119431985170060)
 AddEmote("RONALDO", 97547486465713)
 ---Update Aug 15, 2025--
 AddEmote("SpiderMan-Hanging Pose",82370885440550)
+AddEmote("My arms are crossed. Be aware of it. (MEME)", 85908081483699)
 --unreleased emotes
 AddEmote("Nya Anime Dance", 126647057611522)
 AddEmote("Do that thang", 113772829398170)
@@ -577,7 +578,6 @@ AddEmote("Face Calisthenics", 9830731012)
 AddEmote("Michael Myers Bounce Dance", 86070647431209)
 AddEmote("Michael Myers Bounce ENHANCED", 84555531182471)
 AddEmote("Slickback", 103789826265487)
-AddEmote("Jason vorhees dance Goofy", 127633235542889)
 
 --finished loading
 Loading:Destroy()
