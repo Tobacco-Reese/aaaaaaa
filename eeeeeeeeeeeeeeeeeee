@@ -577,7 +577,7 @@ AddEmote("Face Calisthenics", 9830731012)
 AddEmote("Michael Myers Bounce Dance", 86070647431209)
 AddEmote("Michael Myers Bounce ENHANCED", 84555531182471)
 AddEmote("Slickback", 103789826265487)
-AddEmote("Jason vorhees dance oofy", 127633235542889)
+AddEmote("Jason vorhees dance Goofy", 127633235542889)
 
 --finished loading
 Loading:Destroy()
