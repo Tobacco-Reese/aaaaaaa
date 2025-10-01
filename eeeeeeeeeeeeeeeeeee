@@ -788,4 +788,707 @@ end
 if LocalPlayer.Character then
 	CharacterAdded(LocalPlayer.Character)
 end
+LocalPlayer.CharacterAdded:Connect(CharacterAdded)Frame.MouseLeave:Connect(function()
+	EmoteName.Text = "Select an Emote"
+end)
+Frame.Parent = BackFrame
+
+local Grid = Instance.new("UIGridLayout")
+Grid.CellSize = UDim2.new(0.105, 0, 0, 0)
+Grid.CellPadding = UDim2.new(0.006, 0, 0.006, 0)
+Grid.SortOrder = Enum.SortOrder.LayoutOrder
+Grid.Parent = Frame
+
+local SortFrame = Instance.new("Frame")
+SortFrame.Visible = false
+SortFrame.BorderSizePixel = 0
+SortFrame.Position = UDim2.new(1, 5, -0.125, 0)
+SortFrame.Size = UDim2.new(0.2, 0, 0, 0)
+SortFrame.AutomaticSize = Enum.AutomaticSize.Y
+SortFrame.BackgroundTransparency = 1
+Corner:Clone().Parent = SortFrame
+SortFrame.Parent = BackFrame
+
+local SortList = Instance.new("UIListLayout")
+SortList.Padding = UDim.new(0.02, 0)
+SortList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SortList.VerticalAlignment = Enum.VerticalAlignment.Top
+SortList.SortOrder = Enum.SortOrder.LayoutOrder
+SortList.Parent = SortFrame
+
+local function SortEmotes()
+	for i,Emote in pairs(Emotes) do
+		local EmoteButton = Frame:FindFirstChild(Emote.id)
+		if not EmoteButton then
+			continue
+		end
+		local IsFavorited = table.find(FavoritedEmotes, Emote.id)
+		EmoteButton.LayoutOrder = Emote.sort[CurrentSort] + ((IsFavorited and 0) or #Emotes)
+		EmoteButton.number.Text = Emote.sort[CurrentSort]
+	end
+end
+
+local function createsort(order, text, sort)
+	local CreatedSort = Instance.new("TextButton")
+	CreatedSort.SizeConstraint = Enum.SizeConstraint.RelativeXX
+	CreatedSort.Size = UDim2.new(1, 0, 0.2, 0)
+	CreatedSort.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	CreatedSort.LayoutOrder = order
+	CreatedSort.TextColor3 = Color3.new(1, 1, 1)
+	CreatedSort.Text = text
+	CreatedSort.TextScaled = true
+	CreatedSort.BorderSizePixel = 0
+	Corner:Clone().Parent = CreatedSort
+	CreatedSort.Parent = SortFrame
+	CreatedSort.MouseButton1Click:Connect(function()
+		SortFrame.Visible = false
+		CurrentSort = sort
+		SortEmotes()
+	end)
+	return CreatedSort
+end
+
+createsort(1, "Newest First", "newestfirst")
+createsort(2, "Oldest First", "oldestfirst")
+createsort(3, "Alphabetically First", "alphabeticfirst")
+createsort(4, "Alphabetically Last", "alphabeticlast")
+createsort(5, "Highest Price", "highestprice")
+createsort(6, "Lowest Price", "lowestprice")
+
+local SortButton = Instance.new("TextButton")
+SortButton.BorderSizePixel = 0
+SortButton.AnchorPoint = Vector2.new(0.5, 0.5)
+SortButton.Position = UDim2.new(0.925, -5, -0.075, 0)
+SortButton.Size = UDim2.new(0.15, 0, 0.1, 0)
+SortButton.TextScaled = true
+SortButton.TextColor3 = Color3.new(1, 1, 1)
+SortButton.BackgroundColor3 = Color3.new(0, 0, 0)
+SortButton.BackgroundTransparency = 0.3
+SortButton.Text = "Sort"
+SortButton.MouseButton1Click:Connect(function()
+	SortFrame.Visible = not SortFrame.Visible
+end)
+Corner:Clone().Parent = SortButton
+SortButton.Parent = BackFrame
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.BorderSizePixel = 0
+CloseButton.AnchorPoint = Vector2.new(0.5, 0.5)
+CloseButton.Position = UDim2.new(0.075, 0, -0.075, 0)
+CloseButton.Size = UDim2.new(0.15, 0, 0.1, 0)
+CloseButton.TextScaled = true
+CloseButton.TextColor3 = Color3.new(1, 1, 1)
+CloseButton.BackgroundColor3 = Color3.new(0, 0, 0)
+CloseButton.BackgroundTransparency = 0.3
+CloseButton.Text = "Close"
+CloseButton.MouseButton1Click:Connect(function()
+	ScreenGui.Enabled = false
+end)
+Corner:Clone().Parent = CloseButton
+CloseButton.Parent = BackFrame
+
+local SearchBar = Instance.new("TextBox")
+SearchBar.BorderSizePixel = 0
+SearchBar.AnchorPoint = Vector2.new(0.5, 0.5)
+SearchBar.Position = UDim2.new(0.5, 0, -0.075, 0)
+SearchBar.Size = UDim2.new(0.55, 0, 0.1, 0)
+SearchBar.TextScaled = true
+SearchBar.PlaceholderText = "Search"
+SearchBar.TextColor3 = Color3.new(1, 1, 1)
+SearchBar.BackgroundColor3 = Color3.new(0, 0, 0)
+SearchBar.BackgroundTransparency = 0.3
+SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+	local text = SearchBar.Text:lower()
+	local buttons = Frame:GetChildren()
+	if text ~= text:sub(1,50) then
+		SearchBar.Text = SearchBar.Text:sub(1,50)
+		text = SearchBar.Text:lower()
+	end
+	if text ~= ""  then
+		for i,button in pairs(buttons) do
+			if button:IsA("GuiButton") then
+				local name = button:GetAttribute("name"):lower()
+				if name:match(text) then
+					button.Visible = true
+				else
+					button.Visible = false
+				end
+			end
+		end
+	else
+		for i,button in pairs(buttons) do
+			if button:IsA("GuiButton") then
+				button.Visible = true
+			end
+		end
+	end
+end)
+Corner:Clone().Parent = SearchBar
+SearchBar.Parent = BackFrame
+
+local function openemotes(name, state, input)
+	if state == Enum.UserInputState.Begin then
+		ScreenGui.Enabled = not ScreenGui.Enabled
+	end
+end
+
+if IsStudio then
+	ContextActionService:BindActionAtPriority(
+		"Emote Menu",
+		openemotes,
+		true,
+		2001,
+		Enum.KeyCode.Comma
+	)
+else
+	ContextActionService:BindCoreActionAtPriority(
+		"Emote Menu",
+		openemotes,
+		true,
+		2001,
+		Enum.KeyCode.Comma
+	)
+end
+
+local inputconnect
+ScreenGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if ScreenGui.Enabled == true then
+		EmoteName.Text = "Select an Emote"
+		SearchBar.Text = ""
+		SortFrame.Visible = false
+		GuiService:SetEmotesMenuOpen(false)
+		inputconnect = UserInputService.InputBegan:Connect(function(input, processed)
+			if not processed then
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					ScreenGui.Enabled = false
+				end
+			end
+		end)
+	else
+		inputconnect:Disconnect()
+	end
+end)
+
+if not IsStudio then
+	GuiService.EmotesMenuOpenChanged:Connect(function(isopen)
+		if isopen then
+			ScreenGui.Enabled = false
+		end
+	end)
+end
+
+GuiService.MenuOpened:Connect(function()
+	ScreenGui.Enabled = false
+end)
+
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
+local LocalPlayer = Players.LocalPlayer
+
+if IsStudio then
+	ScreenGui.Parent = LocalPlayer.PlayerGui
+else
+	--thanks inf yield
+	local SynV3 = syn and DrawingImmediate
+	if (not is_sirhurt_closure) and (not SynV3) and (syn and syn.protect_gui) then
+		syn.protect_gui(ScreenGui)
+		ScreenGui.Parent = CoreGui
+	elseif get_hidden_gui or gethui then
+		local hiddenUI = get_hidden_gui or gethui
+		ScreenGui.Parent = hiddenUI()
+	else
+		ScreenGui.Parent = CoreGui
+	end
+end
+
+
+local function SendNotification(title, text)
+	if (not IsStudio) and syn and syn.toast_notification then
+		syn.toast_notification({
+			Type = ToastType.Error,
+			Title = title,
+			Content = text
+		})
+	else
+		StarterGui:SetCore("SendNotification", {
+			Title = title,
+			Text = text
+		})
+	end
+end
+
+local function HumanoidPlayEmote(humanoid, name, id)
+	if IsStudio then
+		return humanoid:PlayEmote(name)
+	else
+		return humanoid:PlayEmoteAndGetAnimTrackById(id)
+	end
+end
+
+local function PlayEmote(name: string, id: IntValue)
+	ScreenGui.Enabled = false
+	SearchBar.Text = ""
+	local Humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+	local Description = Humanoid and Humanoid:FindFirstChildOfClass("HumanoidDescription")
+	if not Description then
+		return
+	end
+	if LocalPlayer.Character.Humanoid.RigType ~= Enum.HumanoidRigType.R6 then
+		local succ, err = pcall(function()
+			HumanoidPlayEmote(Humanoid, name, id)
+		end)
+		if not succ then
+			Description:AddEmote(name, id)
+			HumanoidPlayEmote(Humanoid, name, id)
+		end
+	else
+		SendNotification(
+			"r6? lol",
+			"you gotta be r15 dude"
+		)
+	end
+end
+
+local function WaitForChildOfClass(parent, class)
+	local child = parent:FindFirstChildOfClass(class)
+	while not child or child.ClassName ~= class do
+		child = parent.ChildAdded:Wait()
+	end
+	return child
+end
+
+local params = CatalogSearchParams.new()
+params.AssetTypes = {Enum.AvatarAssetType.EmoteAnimation}
+params.SortType = Enum.CatalogSortType.RecentlyCreated
+params.SortAggregation = Enum.CatalogSortAggregation.AllTime
+params.IncludeOffSale = true
+params.CreatorName = "Roblox"
+params.Limit = 120
+
+local function getCatalogPage()
+	local success, catalogPage = pcall(function()
+		return AvatarEditorService:SearchCatalog(params)
+	end)
+	if not success then
+		task.wait(5)
+		return getCatalogPage()
+	end
+	return catalogPage
+end
+
+local catalogPage = getCatalogPage()
+
+local pages = {}
+
+while true do
+	local currentPage = catalogPage:GetCurrentPage()
+	table.insert(pages, currentPage)
+	if catalogPage.IsFinished then
+		break
+	end
+	local function AdvanceToNextPage()
+		local success = pcall(function()
+			catalogPage:AdvanceToNextPageAsync()
+		end)
+		if not success then
+			task.wait(5)
+			return AdvanceToNextPage()
+		end
+	end
+	AdvanceToNextPage()
+end
+
+local totalEmotes = {}
+for _, page in pairs(pages) do
+	for _, emote in pairs(page) do
+		table.insert(totalEmotes, emote)
+	end
+end
+
+for i, Emote in pairs(totalEmotes) do
+	AddEmote(Emote.Name, Emote.Id, Emote.Price)
+end
+
+
+---Update Aug 15, 2025--
+AddEmote("PARROT PARTY DANCE", 121067808279598)
+AddEmote("Dance n' Prance", 99031916674986)
+AddEmote("R15 Death (Accurate)", 114899970878842)
+AddEmote("Wally West", 133948663586698)
+AddEmote("Take The L", 123159156696507)
+AddEmote("Xaviersobased", 131763631172236)
+AddEmote("Belly Dancing", 131939729732240)
+AddEmote("RAT DANCE", 133461102795137)
+AddEmote("CaramellDansen", 93105950995997)
+AddEmote("Biblically Accurate", 133596366979822)
+AddEmote("Rambunctious", 134311528115559)
+AddEmote("Ballin", 96293409369770)
+AddEmote("Die Lit", 121001502815813)
+AddEmote("Nyan Nyan!", 73796726960568)
+AddEmote("Teto Territory", 114428584463004)
+AddEmote("Skibidi", 124828909173982)
+AddEmote("Chronoshift", 92600655160976)
+AddEmote("Floating on Clouds", 111426928948833)
+AddEmote("Jersey Joe", 134149640725489)
+AddEmote("Virtual Insanity", 83261816934732)
+AddEmote("Doodle Dance", 107091254142209)
+AddEmote("Subject 3", 105208524466512)
+AddEmote("Club Penguin", 98099211500155)
+AddEmote("Kazotsky", 97629500912487)
+AddEmote("Miku Dance", 117734400993750)
+AddEmote("Deltarune - Tenna Swing")
+AddEmote("Hakari Dance", 80270168146449)
+AddEmote("Addendum Dance [R6]", 134442882516163)
+AddEmote("Gangnam Style", 77205409178702)
+AddEmote("Push-Up", 117922227854118)
+
+
+AddEmote("Split", 98522218962476)
+
+AddEmote("PROXIMA", 81390693780805)
+
+
+AddEmote("HeadBanging", 87447252507832)
+
+
+AddEmote("Assumptions", 127507691649322)
+
+AddEmote("Jumpstyle", 99563839802389)
+
+
+AddEmote("Flopping Fish", 133142324349281)
+AddEmote("Kicking Feet Sit", 78758922757947)
+
+AddEmote("Fancy Feets", 124512151372711)
+
+AddEmote("Cute Sit", 90244178386698)
+AddEmote("Absolute Cinema", 97258018304125)
+AddEmote("Bubbly Sit", 112758073578333)
+AddEmote("Become A Car", 131544122623505)
+AddEmote("Hiding Human Box", 124935873390035)
+AddEmote("Magical Pose", 135489824748823)
+AddEmote("Griddy", 116065653184749)
+AddEmote("Gon Rage", 139639173024927)
+AddEmote("Become Couch", 93335594132613)
+AddEmote("Spare Change", 126749574427431)
+AddEmote("Paranoid", 123407922818447)
+AddEmote("Kawaii Groove", 77152953688098)
+AddEmote("Ai Cat dance", 136593170936320)
+AddEmote("Smeeze", 131683926643291)
+AddEmote("Onion", 113890289455724)
+AddEmote("Thinking", 124584711308900)
+AddEmote("Little Obbyist", 134584040095037)
+AddEmote("Aura Fly", 78755795767408)
+AddEmote("Invisible", 109899950448992)
+AddEmote("Slenderman", 81926508907412)
+AddEmote("Chill pose", 77058107325712)
+AddEmote("house", 93552301087938)
+AddEmote("baby", 82824758023484)
+AddEmote("zenitsu", 92750276568993)
+AddEmote("gun", 73562814360939)
+AddEmote("Spy Laugh tf2", 137720205462499) 
+AddEmote("Head Juggling", 82224981519682)
+AddEmote("Omniman Think", 70560694892323)
+AddEmote("Ishowspeed Shake Dancing", 98605663321775)
+AddEmote("Wait", 106569806588657)
+AddEmote("Shinji Pose", 97629500912487)
+AddEmote("Come At Me [ R6 ]", 107758370940834)
+AddEmote("Oscillating Fan", 71493999860590)
+AddEmote("Locked In", 110145155419199)
+AddEmote("BirdBrain", 105730788757021)
+AddEmote("Hakari (FULL)", 71056659089869)
+AddEmote("How A Creeper Walk", 108714986908463)
+AddEmote("Hakari (R6)", 127103118569243)
+AddEmote("Strongest Stance", 80146495484274)
+AddEmote("Cat Things", 131193808160056)
+AddEmote("Doggy Things", 105206768873249)
+AddEmote("Wally West Edit", 72247161810866)
+AddEmote("24 Hour Cinderella", 122972776209997)
+AddEmote("Mesmerizer", 92707348383277)
+AddEmote("Stylish Float", 88425531063616)
+AddEmote("SpongeBob Shuffle", 107899954696611)
+AddEmote("Electro Shuffle", 96426537876059)
+AddEmote("Foreign Shuffle", 101507732056031)
+
+
+AddEmote("Caipirinha", 100165303717371)
+AddEmote("Squidward Yell", 109244554368414)
+
+AddEmote("Hakari (Forsaken)", 73271793399763)
+AddEmote("Teto Dance", 93031502567721)
+AddEmote("Michael Myers", 88229016850146)
+AddEmote("Gun Shoot", 105055412595333)
+AddEmote("Torture Dance", 116099356619436)
+AddEmote("Yapping Yap Yap Gesture",119870339321091)
+AddEmote("Luxurious / Springtrap",132151459316300)
+AddEmote("Hand Drill",103882178542598)
+AddEmote("exclamation",82714556886471)
+AddEmote("Mewing / Mogging",135493514352956)
+AddEmote("lemon melon cookie - Miku",79874689836683)
+AddEmote("Cute Jump",80556794144838)
+AddEmote("Billy Bounce", 126516908191316)
+AddEmote("What U Want / Prince Egypt", 133751526608969)
+
+
+
+AddEmote("Rabbit Hole - Miku", 133481721436918)
+AddEmote("Garou", 86200585395371, 39)
+
+AddEmote("Dio Pose", 76736978166708)
+AddEmote("Golden Freddy", 122463450997235)
+AddEmote("Noclip, Speed", 137006085779408)
+AddEmote("Static [Hatsune Miku]", 84534006084837)
+
+AddEmote("GOALL", 78830825254717)
+AddEmote("Lethal Dance", 77108921633993)
+AddEmote("Plug Walk", 100359724990859)
+AddEmote("At Ease", 76993139936388)
+AddEmote("Conga", 97547955535086)
+AddEmote("Barrel", 84511772437190)
+AddEmote("Helicopter", 84555218084038)
+AddEmote("Aura Farm Boat", 88042995626011)
+AddEmote("Prince Of Egypt", 134063402217274)
+AddEmote("Jersey Joe2", 115782117564871, 39)
+AddEmote("Deltarune - Tenna Dance", 73715378215546)
+
+AddEmote("California Girl", 132074413582912)
+AddEmote("Default Dance", 80877772569772)
+
+AddEmote("Shocked meme", 129501229484294)
+AddEmote("Family Guy", 78459263478161)
+AddEmote("Car Transformation", 96887377943085)
+AddEmote("Insanity", 129843344424281)
+AddEmote("Honored One", 121643381580730)
+AddEmote("Sukuna", 91839607010745)
+AddEmote("Dropper", 130358790702800)
+AddEmote("Be Not Afraid", 70635223083942)
+AddEmote("Macarena", 91274761264433)
+AddEmote("Helicopter2", 119431985170060)
+AddEmote("RONALDO", 97547486465713)
+---Update Aug 15, 2025--
+AddEmote("SpiderMan-Hanging Pose",82370885440550)
+AddEmote("My arms are crossed. Be aware of it. (MEME)", 85908081483699)
+--unreleased emotes
+AddEmote("Nya Anime Dance", 126647057611522)
+AddEmote("Do that thang", 113772829398170)
+AddEmote("Squat?", 95441477641149)
+
+AddEmote("Arm Wave", 5915773155)
+AddEmote("Head Banging", 5915779725)
+AddEmote("Face Calisthenics", 9830731012)
+AddEmote("Michael Myers Bounce Dance", 86070647431209)
+AddEmote("Michael Myers Bounce ENHANCED", 84555531182471)
+AddEmote("Slickback", 103789826265487)
+
+--finished loading
+Loading:Destroy()
+
+--sorting options setup
+table.sort(Emotes, function(a, b)
+	return a.index < b.index
+end)
+for i,v in pairs(Emotes) do
+	v.sort.newestfirst = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.index > b.index
+end)
+for i,v in pairs(Emotes) do
+	v.sort.oldestfirst = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.name:lower() < b.name:lower()
+end)
+for i,v in pairs(Emotes) do
+	v.sort.alphabeticfirst = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.name:lower() > b.name:lower()
+end)
+for i,v in pairs(Emotes) do
+	v.sort.alphabeticlast = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.price < b.price
+end)
+for i,v in pairs(Emotes) do
+	v.sort.lowestprice = i
+end
+
+table.sort(Emotes, function(a, b)
+	return a.price > b.price
+end)
+for i,v in pairs(Emotes) do
+	v.sort.highestprice = i
+end
+
+
+local function IsFileFunc(...)
+	if IsStudio then
+		return
+	elseif isfile then
+		return isfile(...)
+	end
+end
+
+local function WriteFileFunc(...)
+	if IsStudio then
+		return
+	elseif writefile then
+		return writefile(...)
+	end
+end
+
+local function ReadFileFunc(...)
+	if IsStudio then
+		return
+	elseif readfile then
+		return readfile(...)
+	end
+end
+
+if not IsStudio then
+	if IsFileFunc("FavoritedEmotes.txt") then
+		if not pcall(function()
+			FavoritedEmotes = HttpService:JSONDecode(ReadFileFunc("FavoritedEmotes.txt"))
+		end) then
+			FavoritedEmotes = {}
+		end
+	else
+		WriteFileFunc("FavoritedEmotes.txt", HttpService:JSONEncode(FavoritedEmotes))
+	end
+	local UpdatedFavorites = {}
+	for i,name in pairs(FavoritedEmotes) do
+		if typeof(name) == "string" then
+			for i,emote in pairs(Emotes) do
+				if emote.name == name then
+					table.insert(UpdatedFavorites, emote.id)
+					break
+				end
+			end
+		end
+	end
+	if #UpdatedFavorites ~= 0 then
+		FavoritedEmotes = UpdatedFavorites
+		WriteFileFunc("FavoritedEmotes.txt", HttpService:JSONEncode(FavoritedEmotes))
+	end
+end
+
+
+local function CharacterAdded(Character)
+	for i,v in pairs(Frame:GetChildren()) do
+		if not v:IsA("UIGridLayout") then
+			v:Destroy()
+		end
+	end
+	local Humanoid = WaitForChildOfClass(Character, "Humanoid")
+	local Description = Humanoid:WaitForChild("HumanoidDescription", 5) or Instance.new("HumanoidDescription", Humanoid)
+	local random = Instance.new("TextButton")
+	local Ratio = Instance.new("UIAspectRatioConstraint")
+	Ratio.AspectType = Enum.AspectType.ScaleWithParentSize
+	Ratio.Parent = random
+	random.LayoutOrder = 0
+	random.TextColor3 = Color3.new(1, 1, 1)
+	random.BorderSizePixel = 0
+	random.BackgroundTransparency = 0.5
+	random.BackgroundColor3 = Color3.new(0, 0, 0)
+	random.TextScaled = true
+	random.Text = "Random"
+	random:SetAttribute("name", "")
+	Corner:Clone().Parent = random
+	random.MouseButton1Click:Connect(function()
+		local randomemote = Emotes[math.random(1, #Emotes)]
+		PlayEmote(randomemote.name, randomemote.id)
+	end)
+	random.MouseEnter:Connect(function()
+		EmoteName.Text = "Random"
+	end)
+	random.Parent = Frame
+	for i,Emote in pairs(Emotes) do
+		Description:AddEmote(Emote.name, Emote.id)
+		local EmoteButton = Instance.new("ImageButton")
+		local IsFavorited = table.find(FavoritedEmotes, Emote.id)
+		EmoteButton.LayoutOrder = Emote.sort[CurrentSort] + ((IsFavorited and 0) or #Emotes)
+		EmoteButton.Name = Emote.id
+		EmoteButton:SetAttribute("name", Emote.name)
+		Corner:Clone().Parent = EmoteButton
+		EmoteButton.Image = Emote.icon
+		EmoteButton.BackgroundTransparency = 0.5
+		EmoteButton.BackgroundColor3 = Color3.new(0, 0, 0)
+		EmoteButton.BorderSizePixel = 0
+		Ratio:Clone().Parent = EmoteButton
+		local EmoteNumber = Instance.new("TextLabel")
+		EmoteNumber.Name = "number"
+		EmoteNumber.TextScaled = true
+		EmoteNumber.BackgroundTransparency = 1
+		EmoteNumber.TextColor3 = Color3.new(1, 1, 1)
+		EmoteNumber.BorderSizePixel = 0
+		EmoteNumber.AnchorPoint = Vector2.new(0.5, 0.5)
+		EmoteNumber.Size = UDim2.new(0.2, 0, 0.2, 0)
+		EmoteNumber.Position = UDim2.new(0.1, 0, 0.9, 0)
+		EmoteNumber.Text = Emote.sort[CurrentSort]
+		EmoteNumber.TextXAlignment = Enum.TextXAlignment.Center
+		EmoteNumber.TextYAlignment = Enum.TextYAlignment.Center
+		local UIStroke = Instance.new("UIStroke")
+		UIStroke.Transparency = 0.5
+		UIStroke.Parent = EmoteNumber
+		EmoteNumber.Parent = EmoteButton
+		EmoteButton.Parent = Frame
+		EmoteButton.MouseButton1Click:Connect(function()
+			PlayEmote(Emote.name, Emote.id)
+		end)
+		EmoteButton.MouseEnter:Connect(function()
+			EmoteName.Text = Emote.name
+		end)
+		local Favorite = Instance.new("ImageButton")
+		Favorite.Name = "favorite"
+		if table.find(FavoritedEmotes, Emote.id) then
+			Favorite.Image = FavoriteOn
+		else
+			Favorite.Image = FavoriteOff
+		end
+		Favorite.AnchorPoint = Vector2.new(0.5, 0.5)
+		Favorite.Size = UDim2.new(0.2, 0, 0.2, 0)
+		Favorite.Position = UDim2.new(0.9, 0, 0.9, 0)
+		Favorite.BorderSizePixel = 0
+		Favorite.BackgroundTransparency = 1
+		Favorite.Parent = EmoteButton
+		Favorite.MouseButton1Click:Connect(function()
+			local index = table.find(FavoritedEmotes, Emote.id)
+			if index then
+				table.remove(FavoritedEmotes, index)
+				Favorite.Image = FavoriteOff
+				EmoteButton.LayoutOrder = Emote.sort[CurrentSort] + #Emotes
+			else
+				table.insert(FavoritedEmotes, Emote.id)
+				Favorite.Image = FavoriteOn
+				EmoteButton.LayoutOrder = Emote.sort[CurrentSort]
+			end
+			WriteFileFunc("FavoritedEmotes.txt", HttpService:JSONEncode(FavoritedEmotes))
+		end)
+	end
+	for i=1,9 do
+		local EmoteButton = Instance.new("Frame")
+		EmoteButton.LayoutOrder = 2147483647
+		EmoteButton.Name = "filler"
+		EmoteButton.BackgroundTransparency = 1
+		EmoteButton.BorderSizePixel = 0
+		Ratio:Clone().Parent = EmoteButton
+		EmoteButton.Visible = true
+		EmoteButton.Parent = Frame
+		EmoteButton.MouseEnter:Connect(function()
+			EmoteName.Text = "Select an Emote"
+		end)
+	end
+end
+
+if LocalPlayer.Character then
+	CharacterAdded(LocalPlayer.Character)
+end
 LocalPlayer.CharacterAdded:Connect(CharacterAdded)
